@@ -7,16 +7,19 @@
 | 文件 | 作用 |
 |------|------|
 | `ghostty/config` | Ghostty 终端：字体、主题、窗口、光标、交互 |
-| `starship.toml` | Starship 提示符：Catppuccin 彩虹条布局 |
+| `starship/starship.toml` | Starship 提示符：Catppuccin 彩虹条布局 |
 | `vim/cursor.vim` | Vim 光标形状：插入、普通、替换模式分别使用不同光标 |
+| `install.sh` | 一键安装/卸载脚本 |
 
 ```text
 terminal-config/
 ├── ghostty/
 │   └── config
-├── starship.toml
+├── starship/
+│   └── starship.toml
 ├── vim/
 │   └── cursor.vim
+├── install.sh
 └── README.md
 ```
 
@@ -61,7 +64,29 @@ ls ~/Library/Fonts | grep -i 'MapleMono'
 
 ## 安装
 
-将配置复制到对应位置：
+推荐使用一键脚本：
+
+```bash
+chmod +x install.sh
+./install.sh
+```
+
+脚本会：
+
+- 检查 Ghostty、Starship、Vim 是否存在，只安装检测到的工具对应的配置
+- 安装前把已有配置备份到 `~/.config/terminal-config/backup-<时间戳>/`
+- 把安装记录写入 `~/.config/terminal-config/state`
+- Ghostty/Starship 使用复制方式，Vim 使用标记块追加到 `~/.vimrc`
+
+卸载：
+
+```bash
+./install.sh --uninstall
+```
+
+卸载时会恢复安装前的 Ghostty/Starship 配置，并从 `~/.vimrc` 移除脚本添加的标记块。
+
+也可以手动安装：
 
 ```bash
 # Ghostty
@@ -69,7 +94,7 @@ mkdir -p ~/.config/ghostty
 cp ghostty/config ~/.config/ghostty/config
 
 # Starship
-cp starship.toml ~/.config/starship.toml
+cp starship/starship.toml ~/.config/starship.toml
 
 # Vim：追加到现有 vimrc，不要覆盖
 cat vim/cursor.vim >> ~/.vimrc
@@ -107,7 +132,7 @@ shell-integration-features = no-cursor,no-sudo,title,no-ssh-env,no-ssh-terminfo,
 
 ## Starship
 
-`starship.toml` 基于官方 `catppuccin-powerline` 预设改造：
+`starship/starship.toml` 基于官方 `catppuccin-powerline` 预设改造：
 
 - 彩虹条占一行，输入符号 `❯` 另起一行
 - 三段配色：red → peach → lavender
@@ -156,7 +181,7 @@ let &t_SR = "\e[3 q"
 ghostty +validate-config --config-file=ghostty/config
 
 # Starship 配置解析
-STARSHIP_CONFIG=$PWD/starship.toml starship print-config >/dev/null && echo "starship OK"
+STARSHIP_CONFIG=$PWD/starship/starship.toml starship print-config >/dev/null && echo "starship OK"
 
 # Vim 光标选项（三项都非空则通过）
 vim -Nu ~/.vimrc -es \
@@ -176,14 +201,14 @@ vim -Nu ~/.vimrc -es \
 
 ```bash
 cp ghostty/config ~/.config/ghostty/config
-cp starship.toml ~/.config/starship.toml
+cp starship/starship.toml ~/.config/starship.toml
 ```
 
 也可以改用符号链接：
 
 ```bash
 ln -sf "$PWD/ghostty/config" ~/.config/ghostty/config
-ln -sf "$PWD/starship.toml" ~/.config/starship.toml
+ln -sf "$PWD/starship/starship.toml" ~/.config/starship.toml
 ```
 
 Vim 配置不建议直接链接整个 `~/.vimrc`，可以在 vimrc 中使用：
