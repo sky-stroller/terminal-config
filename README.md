@@ -78,6 +78,8 @@ chmod +x install.sh
 - 把安装记录写入 `~/.config/terminal-config/state`
 - Ghostty/Starship 使用复制方式，Vim 使用标记块追加到 `~/.vimrc`
 
+> 首次从手动安装迁移时，如果 `~/.vimrc` 已包含 `t_SI` / `t_EI` / `t_SR` 但没有 `terminal-config` 标记，脚本会跳过 Vim 配置以避免重复；请先手动移除旧配置。
+
 卸载：
 
 ```bash

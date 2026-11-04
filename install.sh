@@ -98,6 +98,12 @@ install_vim() {
     return 1
   fi
 
+  if grep -q '^let &t_SR = ' "$target" 2>/dev/null && ! grep -q '^" >>> terminal-config >>>' "$target" 2>/dev/null; then
+    warn "$target 已包含光标配置但没有 terminal-config 标记，跳过 Vim 配置以避免重复。"
+    warn "如需由脚本管理，请先移除旧的 t_SI / t_EI / t_SR 配置。"
+    return 0
+  fi
+
   local backup
   backup="$(backup_target "$target" "vimrc")"
   touch "$target"
