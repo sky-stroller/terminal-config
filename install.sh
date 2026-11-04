@@ -2,7 +2,23 @@
 # terminal-config 一键安装/卸载脚本
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_PATH="${BASH_SOURCE[0]:-}"
+if [ -n "$SCRIPT_PATH" ] && [ -f "$SCRIPT_PATH" ]; then
+  ROOT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+else
+  ROOT_DIR="$(pwd)"
+fi
+REPO_SLUG="sky-stroller/terminal-config"
+REPO_BRANCH="main"
+TMP_DIR=""
+
+cleanup() {
+  if [ -n "${TMP_DIR:-}" ] && [ -d "$TMP_DIR" ]; then
+    rm -rf "$TMP_DIR"
+  fi
+}
+trap cleanup EXIT
+
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 STATE_DIR="$CONFIG_HOME/terminal-config"
 STATE_FILE="$STATE_DIR/state"
@@ -34,8 +50,41 @@ usage() {
   install      安装检测到的工具对应的配置（默认）
   uninstall    卸载本脚本安装的配置
 
-安装前会检查 Ghostty、Starship、Vim 是否存在，只安装存在的工具配置。
+安装前会检查 Ghostty 和 Vim 是否存在，只安装检测到的工具配置。
+Starship 缺失时会优先通过 Homebrew 自动安装。
+
+远程安装：
+  curl -fsSL https://raw.githubusercontent.com/sky-stroller/terminal-config/main/install.sh | bash
 EOF
+}
+
+prepare_root() {
+  if [ -f "$ROOT_DIR/ghostty/config" ] && [ -f "$ROOT_DIR/starship/starship.toml" ] && [ -f "$ROOT_DIR/vim/cursor.vim" ]; then
+    return 0
+  fi
+
+  command -v curl >/dev/null 2>&1 || {
+    error "未找到 curl，无法远程下载配置"
+    exit 1
+  }
+  command -v tar >/dev/null 2>&1 || {
+    error "未找到 tar，无法解压配置"
+    exit 1
+  }
+
+  info "未检测到本地配置文件，正在从 GitHub 下载..."
+  TMP_DIR="$(mktemp -d)"
+  if ! curl -fsSL "https://github.com/$REPO_SLUG/archive/refs/heads/$REPO_BRANCH.tar.gz" | tar -xz -C "$TMP_DIR" --strip-components=1; then
+    error "下载配置失败，请检查网络或仓库地址"
+    exit 1
+  fi
+  ROOT_DIR="$TMP_DIR"
+
+  if [ ! -f "$ROOT_DIR/ghostty/config" ] || [ ! -f "$ROOT_DIR/starship/starship.toml" ] || [ ! -f "$ROOT_DIR/vim/cursor.vim" ]; then
+    error "下载的配置不完整"
+    exit 1
+  fi
+  success "配置下载完成"
 }
 
 has_ghostty() {
@@ -117,7 +166,37 @@ install_vim() {
   success "Vim 光标配置已追加到 $target"
 }
 
+install_starship() {
+  if command -v starship >/dev/null 2>&1; then
+    success "Starship 已安装：$(command -v starship)"
+    return 0
+  fi
+
+  if command -v brew >/dev/null 2>&1; then
+    info "未检测到 Starship，正在通过 Homebrew 安装..."
+    if ! brew install starship; then
+      error "Homebrew 安装 Starship 失败"
+      return 1
+    fi
+  else
+    warn "未检测到 Homebrew，使用 Starship 官方安装脚本..."
+    if ! curl -fsSL https://starship.rs/install.sh | sh -s -- -y; then
+      error "Starship 官方安装脚本执行失败"
+      return 1
+    fi
+  fi
+
+  if command -v starship >/dev/null 2>&1; then
+    success "Starship 安装完成：$(command -v starship)"
+  else
+    warn "Starship 已安装，但当前 PATH 中找不到，请重新打开终端"
+  fi
+  return 0
+}
+
 do_install() {
+  prepare_root
+
   if [ -f "$STATE_FILE" ]; then
     warn "检测到已有安装记录：$STATE_FILE"
     warn "请先执行 $0 --uninstall，再重新安装。"
@@ -135,11 +214,11 @@ do_install() {
     warn "未检测到 Ghostty，跳过 ghostty/config"
   fi
 
-  if command -v starship >/dev/null 2>&1; then
+  if install_starship; then
     install_copy "$ROOT_DIR/starship/starship.toml" "$CONFIG_HOME/starship.toml" "starship.toml" "Starship"
     installed=1
   else
-    warn "未检测到 Starship，跳过 starship/starship.toml"
+    warn "Starship 安装失败，跳过 starship/starship.toml"
   fi
 
   if command -v vim >/dev/null 2>&1; then
@@ -155,7 +234,11 @@ do_install() {
     return 1
   fi
 
-  success "安装完成。卸载请执行：$0 --uninstall"
+  if [ -n "${TMP_DIR:-}" ]; then
+    success "安装完成。卸载请执行：curl -fsSL https://raw.githubusercontent.com/$REPO_SLUG/$REPO_BRANCH/install.sh | bash -s -- --uninstall"
+  else
+    success "安装完成。卸载请执行：$0 --uninstall"
+  fi
 }
 
 do_uninstall() {
@@ -179,7 +262,7 @@ do_uninstall() {
         ;;
       vim)
         remove_vim_block "$target"
-        if [ -z "${backup:-}" ] && [ -f "$target" ] && [ ! -s "$target" ]; then
+        if [ -z "${backup:-}" ] && [ -f "$target" ] && ! grep -q '[^[:space:]]' "$target"; then
           rm -f "$target"
         fi
         success "已从 $target 移除 Vim 配置"

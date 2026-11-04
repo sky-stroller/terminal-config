@@ -26,7 +26,7 @@ terminal-config/
 ## 依赖
 
 - [Ghostty](https://ghostty.org/) 1.4+
-- [Starship](https://starship.rs/) 1.27+
+- [Starship](https://starship.rs/) 1.27+（见下方“Starship 安装”）
 - `Maple Mono NF CN` 字体（见下方“字体安装”）
 - 支持 Nerd Font 图标的终端字体
 
@@ -62,29 +62,79 @@ ls ~/Library/Fonts | grep -i 'MapleMono'
 
 安装或更换字体后，重启 Ghostty 让字体生效。
 
+## Starship 安装
+
+macOS 推荐用 Homebrew：
+
+```bash
+brew install starship
+```
+
+没有 Homebrew 时可以使用官方安装脚本：
+
+```bash
+curl -sS https://starship.rs/install.sh | sh
+```
+
+安装后在 shell 配置中启用（以 zsh 为例）：
+
+```bash
+# ~/.zshrc
+eval "$(starship init zsh)"
+```
+
+重新加载 shell：
+
+```bash
+exec zsh
+```
+
+验证：
+
+```bash
+starship --version
+```
+
+`install.sh` 会自动检测 Starship，缺失时优先通过 Homebrew 安装；没有 Homebrew 时回退到官方安装脚本。
+
 ## 安装
 
-推荐使用一键脚本：
+### curl 一键安装
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/sky-stroller/terminal-config/main/install.sh | bash
+```
+
+脚本会自动下载仓库配置到临时目录，安装完成后清理。
+
+卸载：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/sky-stroller/terminal-config/main/install.sh | bash -s -- --uninstall
+```
+
+### 本地安装
 
 ```bash
 chmod +x install.sh
 ./install.sh
 ```
 
-脚本会：
-
-- 检查 Ghostty、Starship、Vim 是否存在，只安装检测到的工具对应的配置
-- 安装前把已有配置备份到 `~/.config/terminal-config/backup-<时间戳>/`
-- 把安装记录写入 `~/.config/terminal-config/state`
-- Ghostty/Starship 使用复制方式，Vim 使用标记块追加到 `~/.vimrc`
-
-> 首次从手动安装迁移时，如果 `~/.vimrc` 已包含 `t_SI` / `t_EI` / `t_SR` 但没有 `terminal-config` 标记，脚本会跳过 Vim 配置以避免重复；请先手动移除旧配置。
-
 卸载：
 
 ```bash
 ./install.sh --uninstall
 ```
+
+脚本会：
+
+- 检查 Ghostty 和 Vim 是否存在，只安装检测到的工具配置
+- Starship 缺失时优先通过 Homebrew 自动安装，没有 Homebrew 时使用官方安装脚本
+- 安装前把已有配置备份到 `~/.config/terminal-config/backup-<时间戳>/`
+- 把安装记录写入 `~/.config/terminal-config/state`
+- Ghostty/Starship 使用复制方式，Vim 使用标记块追加到 `~/.vimrc`
+
+> 首次从手动安装迁移时，如果 `~/.vimrc` 已包含 `t_SI` / `t_EI` / `t_SR` 但没有 `terminal-config` 标记，脚本会跳过 Vim 配置以避免重复；请先手动移除旧配置。
 
 卸载时会恢复安装前的 Ghostty/Starship 配置，并从 `~/.vimrc` 移除脚本添加的标记块。
 
