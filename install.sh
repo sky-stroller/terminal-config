@@ -138,6 +138,17 @@ remove_vim_block() {
   mv "$file.tmp" "$file"
 }
 
+remove_zsh_block() {
+  local file="$1"
+  [ -f "$file" ] || return 0
+  awk '
+    /^# >>> terminal-config >>>$/ { skip=1; next }
+    /^# <<< terminal-config <<<$/ { skip=0; next }
+    !skip { print }
+  ' "$file" > "$file.tmp"
+  mv "$file.tmp" "$file"
+}
+
 install_vim() {
   local source="$ROOT_DIR/vim/cursor.vim"
   local target="$HOME/.vimrc"
@@ -194,6 +205,36 @@ install_starship() {
   return 0
 }
 
+install_zshrc() {
+  local target="$HOME/.zshrc"
+
+  if [ "${SHELL##*/}" != "zsh" ]; then
+    warn "当前 shell 不是 zsh，跳过 ~/.zshrc 配置"
+    return 0
+  fi
+
+  if grep -q 'starship init zsh' "$target" 2>/dev/null; then
+    if grep -q '^# >>> terminal-config >>>' "$target" 2>/dev/null; then
+      success "~/.zshrc 已包含 Starship 初始化"
+    else
+      warn "~/.zshrc 已包含 starship init zsh，跳过自动写入"
+    fi
+    return 0
+  fi
+
+  local backup
+  backup="$(backup_target "$target" "zshrc")"
+  touch "$target"
+  remove_zsh_block "$target"
+  {
+    printf '\n# >>> terminal-config >>>\n'
+    printf 'eval "$(starship init zsh)"\n'
+    printf '# <<< terminal-config <<<\n'
+  } >> "$target"
+  record "zsh" "$target" "$backup"
+  success "Starship 初始化已写入 $target"
+}
+
 do_install() {
   prepare_root
 
@@ -216,6 +257,7 @@ do_install() {
 
   if install_starship; then
     install_copy "$ROOT_DIR/starship/starship.toml" "$CONFIG_HOME/starship.toml" "starship.toml" "Starship"
+    install_zshrc
     installed=1
   else
     warn "Starship 安装失败，跳过 starship/starship.toml"
@@ -266,6 +308,13 @@ do_uninstall() {
           rm -f "$target"
         fi
         success "已从 $target 移除 Vim 配置"
+        ;;
+      zsh)
+        remove_zsh_block "$target"
+        if [ -z "${backup:-}" ] && [ -f "$target" ] && ! grep -q '[^[:space:]]' "$target"; then
+          rm -f "$target"
+        fi
+        success "已从 $target 移除 Starship 初始化"
         ;;
       *)
         warn "未知记录类型：$mode"

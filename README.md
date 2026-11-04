@@ -76,12 +76,14 @@ brew install starship
 curl -sS https://starship.rs/install.sh | sh
 ```
 
-安装后在 shell 配置中启用（以 zsh 为例）：
+`install.sh` 会在检测到 zsh 时自动把下面这行写入 `~/.zshrc`：
 
 ```bash
 # ~/.zshrc
 eval "$(starship init zsh)"
 ```
+
+如果 `~/.zshrc` 已包含 `starship init zsh`，脚本会跳过自动写入，避免重复。手动安装时需要自行添加这一行。
 
 重新加载 shell：
 
@@ -130,13 +132,14 @@ chmod +x install.sh
 
 - 检查 Ghostty 和 Vim 是否存在，只安装检测到的工具配置
 - Starship 缺失时优先通过 Homebrew 自动安装，没有 Homebrew 时使用官方安装脚本
+- 检测到 zsh 时，把 Starship 初始化写入 `~/.zshrc`（带标记块，卸载时移除）
 - 安装前把已有配置备份到 `~/.config/terminal-config/backup-<时间戳>/`
 - 把安装记录写入 `~/.config/terminal-config/state`
 - Ghostty/Starship 使用复制方式，Vim 使用标记块追加到 `~/.vimrc`
 
 > 首次从手动安装迁移时，如果 `~/.vimrc` 已包含 `t_SI` / `t_EI` / `t_SR` 但没有 `terminal-config` 标记，脚本会跳过 Vim 配置以避免重复；请先手动移除旧配置。
 
-卸载时会恢复安装前的 Ghostty/Starship 配置，并从 `~/.vimrc` 移除脚本添加的标记块。
+卸载时会恢复安装前的 Ghostty/Starship 配置，并从 `~/.vimrc` 和 `~/.zshrc` 移除脚本添加的标记块。
 
 也可以手动安装：
 
