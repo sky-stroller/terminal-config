@@ -309,7 +309,7 @@ install_vscode() {
     return 1
   fi
   record "copy" "$target" "$backup"
-  success "VS Code 用户字体已设为 $family，请重载窗口"
+  success "VS Code 用户字体已设为 ${family}，请重载窗口"
 }
 
 install_zshrc() {

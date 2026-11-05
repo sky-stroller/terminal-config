@@ -76,7 +76,7 @@ class FontSettingsTests(unittest.TestCase):
                     if existing:
                         target.parent.mkdir(parents=True)
                         target.write_text(original)
-                    environment = {**os.environ, 'HOME': str(home),
+                    environment = {**os.environ, 'HOME': str(home), 'LC_ALL': 'en_US.UTF-8',
                                    'XDG_CONFIG_HOME': str(home / '.config')}
                     setup = functions + '''
 ROOT_DIR="$1"
