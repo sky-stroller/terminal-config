@@ -193,7 +193,9 @@ chmod +x install.sh
 
 脚本会：
 
-- 检查 Ghostty 和 Vim 是否存在，只安装检测到的工具配置
+- 检查 Ghostty、Vim 和 macOS 上的 VS Code，只安装检测到的工具配置
+- 检测到 macOS VS Code 时，设置用户配置中的 `editor.fontFamily` 和 `terminal.integrated.fontFamily`：优先使用已安装的 `Maple Mono NF CN`，只有 NF 时使用 `Maple Mono NF`，未检测到字体文件时沿用默认的 NF CN
+- VS Code 配置写入 `~/Library/Application Support/Code/User/settings.json`，需要 Python 3；保留 JSONC 注释、格式和其他设置，配置无效时提示并跳过
 - Starship 缺失时优先通过 Homebrew 自动安装，没有 Homebrew 时使用官方安装脚本
 - 检测到 zsh 时，把 Starship 初始化写入 `~/.zshrc`（带标记块，卸载时移除）
 - 安装前把已有配置备份到 `~/.config/terminal-config/backup-<时间戳>/`
@@ -202,7 +204,7 @@ chmod +x install.sh
 
 > 首次从手动安装迁移时，如果 `~/.vimrc` 已包含 `t_SI` / `t_EI` / `t_SR` 但没有 `terminal-config` 标记，脚本会跳过 Vim 配置以避免重复；请先手动移除旧配置。
 
-卸载时会恢复安装前的 Ghostty/Starship 配置，并从 `~/.vimrc` 和 `~/.zshrc` 移除脚本添加的标记块。
+卸载时会恢复安装前的 Ghostty/Starship 配置及 VS Code 用户配置文件（整个文件恢复为备份；若原文件不存在则删除脚本创建的文件），并从 `~/.vimrc` 和 `~/.zshrc` 移除脚本添加的标记块。
 
 也可以手动安装：
 

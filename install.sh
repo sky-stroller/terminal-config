@@ -51,7 +51,7 @@ usage() {
   uninstall    卸载本脚本安装的配置
   register-fonts  仅注册已有字体，不修改工具配置（macOS）
 
-安装前会检查 Ghostty 和 Vim 是否存在，只安装检测到的工具配置。
+安装前会检查 Ghostty、Vim 和 macOS 上的 VS Code，只安装检测到的工具配置。
 Starship 缺失时会优先通过 Homebrew 自动安装。
 macOS 会注册 ~/Library/Fonts 中已有的 Maple Mono NF / NF CN 字体（需要 Python 3）。
 
@@ -61,7 +61,7 @@ EOF
 }
 
 prepare_root() {
-  if [ -f "$ROOT_DIR/ghostty/config" ] && [ -f "$ROOT_DIR/starship/starship.toml" ] && [ -f "$ROOT_DIR/vim/cursor.vim" ]; then
+  if [ -f "$ROOT_DIR/ghostty/config" ] && [ -f "$ROOT_DIR/starship/starship.toml" ] && [ -f "$ROOT_DIR/vim/cursor.vim" ] && [ -f "$ROOT_DIR/scripts/configure-vscode-font.py" ]; then
     return 0
   fi
 
@@ -82,7 +82,7 @@ prepare_root() {
   fi
   ROOT_DIR="$TMP_DIR"
 
-  if [ ! -f "$ROOT_DIR/ghostty/config" ] || [ ! -f "$ROOT_DIR/starship/starship.toml" ] || [ ! -f "$ROOT_DIR/vim/cursor.vim" ]; then
+  if [ ! -f "$ROOT_DIR/ghostty/config" ] || [ ! -f "$ROOT_DIR/starship/starship.toml" ] || [ ! -f "$ROOT_DIR/vim/cursor.vim" ] || [ ! -f "$ROOT_DIR/scripts/configure-vscode-font.py" ]; then
     error "下载的配置不完整"
     exit 1
   fi
@@ -278,6 +278,40 @@ PY
   fi
 }
 
+install_vscode() {
+  [ "$(uname -s)" = "Darwin" ] || return 1
+  if ! command -v code >/dev/null 2>&1 && [ ! -d /Applications/Visual\ Studio\ Code.app ] && [ ! -d "$HOME/Applications/Visual Studio Code.app" ]; then
+    warn "未检测到 VS Code，跳过用户字体配置"
+    return 1
+  fi
+  if ! command -v python3 >/dev/null 2>&1; then
+    warn "未找到 Python 3，跳过 VS Code 用户字体配置"
+    return 1
+  fi
+
+  local family="Maple Mono NF CN" font_file found=0
+  for font_file in "$HOME"/Library/Fonts/MapleMono-NF-CN-*.ttf /Library/Fonts/MapleMono-NF-CN-*.ttf; do
+    [ -f "$font_file" ] && found=1
+  done
+  if [ "$found" -eq 0 ]; then
+    for font_file in "$HOME"/Library/Fonts/MapleMono-NF-*.ttf /Library/Fonts/MapleMono-NF-*.ttf; do
+      if [ -f "$font_file" ]; then
+        family="Maple Mono NF"
+        break
+      fi
+    done
+  fi
+
+  local target="$HOME/Library/Application Support/Code/User/settings.json" backup
+  backup="$(backup_target "$target" "vscode-settings.json")"
+  if ! python3 "$ROOT_DIR/scripts/configure-vscode-font.py" "$target" "$family"; then
+    warn "VS Code 配置更新失败，已保留原配置，继续安装其他工具"
+    return 1
+  fi
+  record "copy" "$target" "$backup"
+  success "VS Code 用户字体已设为 $family，请重载窗口"
+}
+
 install_zshrc() {
   local target="$HOME/.zshrc"
 
@@ -322,6 +356,10 @@ do_install() {
   mkdir -p "$STATE_DIR"
   : > "$STATE_FILE"
   local installed=0
+
+  if install_vscode; then
+    installed=1
+  fi
 
   if has_ghostty; then
     install_copy "$ROOT_DIR/ghostty/config" "$CONFIG_HOME/ghostty/config" "ghostty-config" "Ghostty"
