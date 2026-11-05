@@ -60,7 +60,64 @@ font-family = "Maple Mono NF"
 ls ~/Library/Fonts | grep -i 'MapleMono'
 ```
 
-安装或更换字体后，重启 Ghostty 让字体生效。
+在 macOS 上，一键安装脚本会使用 Python 3 调用 CoreText，将 `~/Library/Fonts/MapleMono-NF-CN-*.ttf` 注册到当前用户字体库，已注册的字体会自动跳过。脚本不会下载字体；缺少字体、Python 3 或注册失败时会给出提示，并继续安装工具配置。卸载配置时保留字体注册。
+
+安装或更换字体后，重启终端应用；VS Code 可以执行 `Developer: Reload Window`。如果复制字体后仍显示图标方框，可用 macOS「字体簿」安装字体，或单独执行注册，不必卸载现有配置：
+
+```bash
+./install.sh register-fonts
+```
+
+### 其他终端
+
+其他终端不会自动继承 Ghostty 的字体设置，需要手动选择 `Maple Mono NF CN`：
+
+| 终端 | 设置方式 |
+|------|----------|
+| iTerm2 | `Settings → Profiles → Text → Font`，建议 Non-ASCII Font 也选同一字体 |
+| Terminal.app | `Settings → Profiles → Text → Font → Change` |
+| VS Code | `settings.json` 中设置 `editor.fontFamily` 和 `terminal.integrated.fontFamily` |
+| Alacritty | `[font.normal] family = "Maple Mono NF CN"` |
+| Kitty | `font_family Maple Mono NF CN` |
+| WezTerm | `wezterm.font("Maple Mono NF CN")` |
+| Warp | `Settings → Appearance → Font` |
+
+VS Code 示例：
+
+```json
+{
+  "editor.fontFamily": "Maple Mono NF CN",
+  "terminal.integrated.fontFamily": "Maple Mono NF CN",
+  "terminal.integrated.fontLigatures": true
+}
+```
+
+Alacritty 示例：
+
+```toml
+[font]
+size = 13
+
+[font.normal]
+family = "Maple Mono NF CN"
+style = "Regular"
+```
+
+Kitty 示例：
+
+```conf
+font_family Maple Mono NF CN
+font_size 13
+```
+
+WezTerm 示例：
+
+```lua
+config.font = wezterm.font("Maple Mono NF CN")
+config.font_size = 13
+```
+
+注意要选择带 **NF** 的版本；`Maple Mono CN` 不含 Nerd Font 图标。通过 SSH 连接远程时，字体由本地终端渲染，远程机器不需要安装字体；tmux 也不会改变字体。
 
 ## Starship 安装
 

@@ -45,13 +45,15 @@ error() { printf '%s\n' "${RED}✗${NC} $*" >&2; }
 
 usage() {
   cat <<EOF
-用法: $0 [install|uninstall]
+用法: $0 [install|uninstall|register-fonts]
 
   install      安装检测到的工具对应的配置（默认）
   uninstall    卸载本脚本安装的配置
+  register-fonts  仅注册已有字体，不修改工具配置（macOS）
 
 安装前会检查 Ghostty 和 Vim 是否存在，只安装检测到的工具配置。
 Starship 缺失时会优先通过 Homebrew 自动安装。
+macOS 会注册 ~/Library/Fonts 中已有的 Maple Mono NF CN 字体（需要 Python 3）。
 
 远程安装：
   curl -fsSL https://raw.githubusercontent.com/sky-stroller/terminal-config/main/install.sh | bash
@@ -205,6 +207,73 @@ install_starship() {
   return 0
 }
 
+register_maple_fonts() {
+  [ "$(uname -s)" = "Darwin" ] || return 0
+
+  local font_files=("$HOME"/Library/Fonts/MapleMono-NF-CN-*.ttf)
+  if [ ! -f "${font_files[0]}" ]; then
+    warn "未找到 Maple Mono NF CN 字体，请先用字体簿安装或执行 brew install --cask font-maple-mono-nf-cn"
+    return 0
+  fi
+  if ! command -v python3 >/dev/null 2>&1; then
+    warn "未找到 Python 3，跳过字体注册；请在字体簿中安装 Maple Mono NF CN"
+    return 0
+  fi
+
+  info "正在向 macOS 当前用户字体库注册 Maple Mono NF CN..."
+  if python3 - "${font_files[@]}" <<'PY'
+import ctypes
+import os
+import sys
+
+cf = ctypes.CDLL('/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation')
+ct = ctypes.CDLL('/System/Library/Frameworks/CoreText.framework/CoreText')
+cf.CFURLCreateFromFileSystemRepresentation.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_long, ctypes.c_bool]
+cf.CFURLCreateFromFileSystemRepresentation.restype = ctypes.c_void_p
+cf.CFErrorGetCode.argtypes = [ctypes.c_void_p]
+cf.CFErrorGetCode.restype = ctypes.c_long
+cf.CFErrorCopyDescription.argtypes = [ctypes.c_void_p]
+cf.CFErrorCopyDescription.restype = ctypes.c_void_p
+cf.CFStringGetCString.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_long, ctypes.c_uint]
+cf.CFRelease.argtypes = [ctypes.c_void_p]
+ct.CTFontManagerRegisterFontsForURL.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.POINTER(ctypes.c_void_p)]
+ct.CTFontManagerRegisterFontsForURL.restype = ctypes.c_bool
+
+failed = False
+for path in sys.argv[1:]:
+    data = os.fsencode(path)
+    url = cf.CFURLCreateFromFileSystemRepresentation(None, data, len(data), False)
+    if not url:
+        print(f'无法创建字体 URL：{path}', file=sys.stderr)
+        failed = True
+        continue
+    error = ctypes.c_void_p()
+    # 使用当前用户的持久注册范围；105 表示字体已经注册。
+    ok = ct.CTFontManagerRegisterFontsForURL(url, 2, ctypes.byref(error))
+    cf.CFRelease(url)
+    already_registered = bool(error.value) and cf.CFErrorGetCode(error) == 105
+    if not ok and not already_registered:
+        failed = True
+        message = '未知错误'
+        if error.value:
+            description = cf.CFErrorCopyDescription(error)
+            if description:
+                buffer = ctypes.create_string_buffer(2048)
+                if cf.CFStringGetCString(description, buffer, len(buffer), 0x08000100):
+                    message = buffer.value.decode('utf-8', errors='replace')
+                cf.CFRelease(description)
+        print(f'字体注册失败：{path}：{message}', file=sys.stderr)
+    if error.value:
+        cf.CFRelease(error)
+sys.exit(1 if failed else 0)
+PY
+  then
+    success "Maple Mono NF CN 字体已注册，请重载 VS Code 窗口或重启终端应用"
+  else
+    warn "部分字体未能注册，请在字体簿中检查并安装；继续安装工具配置"
+  fi
+}
+
 install_zshrc() {
   local target="$HOME/.zshrc"
 
@@ -243,6 +312,8 @@ do_install() {
     warn "请先执行 $0 --uninstall，再重新安装。"
     exit 1
   fi
+
+  register_maple_fonts
 
   mkdir -p "$STATE_DIR"
   : > "$STATE_FILE"
@@ -328,6 +399,7 @@ do_uninstall() {
 
 case "${1:-install}" in
   install) do_install ;;
+  register-fonts|--register-fonts) register_maple_fonts ;;
   uninstall|--uninstall|-u) do_uninstall ;;
   -h|--help|help) usage ;;
   *)
