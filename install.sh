@@ -53,7 +53,7 @@ usage() {
 
 安装前会检查 Ghostty 和 Vim 是否存在，只安装检测到的工具配置。
 Starship 缺失时会优先通过 Homebrew 自动安装。
-macOS 会注册 ~/Library/Fonts 中已有的 Maple Mono NF CN 字体（需要 Python 3）。
+macOS 会注册 ~/Library/Fonts 中已有的 Maple Mono NF / NF CN 字体（需要 Python 3）。
 
 远程安装：
   curl -fsSL https://raw.githubusercontent.com/sky-stroller/terminal-config/main/install.sh | bash
@@ -210,17 +210,21 @@ install_starship() {
 register_maple_fonts() {
   [ "$(uname -s)" = "Darwin" ] || return 0
 
-  local font_files=("$HOME"/Library/Fonts/MapleMono-NF-CN-*.ttf)
-  if [ ! -f "${font_files[0]}" ]; then
-    warn "未找到 Maple Mono NF CN 字体，请先用字体簿安装或执行 brew install --cask font-maple-mono-nf-cn"
+  local font_files=() font_file
+  # 此模式同时匹配 NF 和 NF CN，过滤未匹配的通配符及目录。
+  for font_file in "$HOME"/Library/Fonts/MapleMono-NF-*.ttf; do
+    [ -f "$font_file" ] && font_files+=("$font_file")
+  done
+  if [ "${#font_files[@]}" -eq 0 ]; then
+    warn "未找到 Maple Mono NF / NF CN 字体，请先用字体簿安装或执行 brew install --cask font-maple-mono-nf（中文版本：font-maple-mono-nf-cn）"
     return 0
   fi
   if ! command -v python3 >/dev/null 2>&1; then
-    warn "未找到 Python 3，跳过字体注册；请在字体簿中安装 Maple Mono NF CN"
+    warn "未找到 Python 3，跳过字体注册；请在字体簿中安装 Maple Mono NF / NF CN"
     return 0
   fi
 
-  info "正在向 macOS 当前用户字体库注册 Maple Mono NF CN..."
+  info "正在向 macOS 当前用户字体库注册 Maple Mono NF / NF CN..."
   if python3 - "${font_files[@]}" <<'PY'
 import ctypes
 import os
@@ -268,7 +272,7 @@ for path in sys.argv[1:]:
 sys.exit(1 if failed else 0)
 PY
   then
-    success "Maple Mono NF CN 字体已注册，请重载 VS Code 窗口或重启终端应用"
+    success "Maple Mono NF / NF CN 字体已注册，请重载 VS Code 窗口或重启终端应用"
   else
     warn "部分字体未能注册，请在字体簿中检查并安装；继续安装工具配置"
   fi

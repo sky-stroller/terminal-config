@@ -60,12 +60,18 @@ font-family = "Maple Mono NF"
 ls ~/Library/Fonts | grep -i 'MapleMono'
 ```
 
-在 macOS 上，一键安装脚本会使用 Python 3 调用 CoreText，将 `~/Library/Fonts/MapleMono-NF-CN-*.ttf` 注册到当前用户字体库，已注册的字体会自动跳过。脚本不会下载字体；缺少字体、Python 3 或注册失败时会给出提示，并继续安装工具配置。卸载配置时保留字体注册。
+在 macOS 上，一键安装脚本会使用 Python 3 调用 CoreText，将 `~/Library/Fonts/` 中的 `MapleMono-NF-*.ttf` 和 `MapleMono-NF-CN-*.ttf` 注册到当前用户字体库，兼容不带中文字形的 NF 版本；两个版本同时存在时都会注册，已注册的字体会自动跳过。脚本不会下载字体；缺少字体、Python 3 或注册失败时会给出提示，并继续安装工具配置。卸载配置时保留字体注册。
 
 安装或更换字体后，重启终端应用；VS Code 可以执行 `Developer: Reload Window`。如果复制字体后仍显示图标方框，可用 macOS「字体簿」安装字体，或单独执行注册，不必卸载现有配置：
 
 ```bash
 ./install.sh register-fonts
+```
+
+也可以通过 curl 单独注册字体，无需下载仓库，也不会修改工具配置：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/sky-stroller/terminal-config/main/install.sh | bash -s -- register-fonts
 ```
 
 ### 其他终端
