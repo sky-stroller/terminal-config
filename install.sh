@@ -281,11 +281,11 @@ PY
 install_vscode() {
   [ "$(uname -s)" = "Darwin" ] || return 1
   if ! command -v code >/dev/null 2>&1 && [ ! -d /Applications/Visual\ Studio\ Code.app ] && [ ! -d "$HOME/Applications/Visual Studio Code.app" ]; then
-    warn "未检测到 VS Code，跳过用户字体配置"
+    warn "未检测到 VS Code，跳过用户终端字体配置"
     return 1
   fi
   if ! command -v python3 >/dev/null 2>&1; then
-    warn "未找到 Python 3，跳过 VS Code 用户字体配置"
+    warn "未找到 Python 3，跳过 VS Code 用户终端字体配置"
     return 1
   fi
 
@@ -309,7 +309,7 @@ install_vscode() {
     return 1
   fi
   record "copy" "$target" "$backup"
-  success "VS Code 用户字体已设为 ${family}，请重载窗口"
+  success "VS Code 用户终端字体已设为 ${family}，请重载窗口"
 }
 
 install_zshrc() {

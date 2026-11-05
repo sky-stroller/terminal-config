@@ -82,7 +82,7 @@ curl -fsSL https://raw.githubusercontent.com/sky-stroller/terminal-config/main/i
 |------|----------|
 | iTerm2 | `Settings → Profiles → Text → Font`，建议 Non-ASCII Font 也选同一字体 |
 | Terminal.app | `Settings → Profiles → Text → Font → Change` |
-| VS Code | `settings.json` 中设置 `editor.fontFamily` 和 `terminal.integrated.fontFamily` |
+| VS Code | `settings.json` 中设置 `terminal.integrated.fontFamily` |
 | Alacritty | `[font.normal] family = "Maple Mono NF CN"` |
 | Kitty | `font_family Maple Mono NF CN` |
 | WezTerm | `wezterm.font("Maple Mono NF CN")` |
@@ -92,7 +92,6 @@ VS Code 示例：
 
 ```json
 {
-  "editor.fontFamily": "Maple Mono NF CN",
   "terminal.integrated.fontFamily": "Maple Mono NF CN",
   "terminal.integrated.fontLigatures": true
 }
@@ -194,7 +193,7 @@ chmod +x install.sh
 脚本会：
 
 - 检查 Ghostty、Vim 和 macOS 上的 VS Code，只安装检测到的工具配置
-- 检测到 macOS VS Code 时，设置用户配置中的 `editor.fontFamily` 和 `terminal.integrated.fontFamily`：优先使用已安装的 `Maple Mono NF CN`，只有 NF 时使用 `Maple Mono NF`，未检测到字体文件时沿用默认的 NF CN
+- 检测到 macOS VS Code 时，仅设置用户配置中的 `terminal.integrated.fontFamily`，保留原有编辑器字体 `editor.fontFamily`：优先使用已安装的 `Maple Mono NF CN`，只有 NF 时使用 `Maple Mono NF`，未检测到字体文件时沿用默认的 NF CN
 - VS Code 配置写入 `~/Library/Application Support/Code/User/settings.json`，需要 Python 3；保留 JSONC 注释、格式和其他设置，配置无效时提示并跳过
 - Starship 缺失时优先通过 Homebrew 自动安装，没有 Homebrew 时使用官方安装脚本
 - 检测到 zsh 时，把 Starship 初始化写入 `~/.zshrc`（带标记块，卸载时移除）

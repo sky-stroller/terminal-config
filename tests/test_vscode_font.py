@@ -28,18 +28,19 @@ class FontSettingsTests(unittest.TestCase):
         self.assertIn('// 字体说明', result)
         self.assertIn('"url": "https://example.com/a//b"', result)
         self.assertIn('"[python]": {"editor.fontFamily": "Nested",}', result)
-        self.assertEqual(result.count(': "Maple Mono NF"'), 2)
+        self.assertIn('"editor.fontFamily": "Menlo"', result)
+        self.assertEqual(result.count(': "Maple Mono NF"'), 1)
         self.assertEqual(module.configure(result, 'Maple Mono NF'), result)
 
     def test_adds_missing_keys(self):
         for original in ('', '{}', '{"other": 1}', '{"other": [1, 2]}'):
             result = json.loads(module.configure(original, 'Maple Mono NF CN'))
-            self.assertEqual(result['editor.fontFamily'], 'Maple Mono NF CN')
+            self.assertNotIn('editor.fontFamily', result)
             self.assertEqual(result['terminal.integrated.fontFamily'], 'Maple Mono NF CN')
 
     def test_handles_comments_trailing_comma_and_duplicate_keys(self):
         for original in ('{/* 注释 */}', '{"other": true, // 保留\n}',
-                         '{"editor.fontFamily": "A", "editor.fontFamily": "B"}'):
+                         '{"terminal.integrated.fontFamily": "A", "terminal.integrated.fontFamily": "B"}'):
             result = module.configure(original, 'Maple Mono NF')
             self.assertNotIn('"A"', result)
             self.assertNotIn('"B"', result)
@@ -58,7 +59,9 @@ class FontSettingsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'Application Support/Code/User/settings.json'
             subprocess.run([sys.executable, str(SCRIPT), str(path), 'Maple Mono NF'], check=True)
-            self.assertEqual(json.loads(path.read_text())['editor.fontFamily'], 'Maple Mono NF')
+            settings = json.loads(path.read_text())
+            self.assertEqual(settings['terminal.integrated.fontFamily'], 'Maple Mono NF')
+            self.assertNotIn('editor.fontFamily', settings)
 
     def test_install_selects_font_and_uninstall_restores_settings(self):
         installer = SCRIPT.parents[1] / 'install.sh'
@@ -89,6 +92,10 @@ install_vscode
                     subprocess.run(['bash', '-c', setup, '测试安装', str(SCRIPT.parents[1])],
                                    env=environment, capture_output=True, check=True)
                     self.assertIn('"terminal.integrated.fontFamily": "' + family + '"', target.read_text())
+                    if existing:
+                        self.assertIn('"editor.fontFamily": "Old"', target.read_text())
+                    else:
+                        self.assertNotIn('editor.fontFamily', target.read_text())
                     subprocess.run(['bash', '-c', functions + '\ndo_uninstall\n'],
                                    env=environment, capture_output=True, check=True)
                     if existing:

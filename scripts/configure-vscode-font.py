@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""保留 JSONC 注释和格式，仅更新 VS Code 用户字体设置。"""
+"""保留 JSONC 注释和格式，仅更新 VS Code 用户终端字体设置。"""
 
 import json
 import os
@@ -33,7 +33,7 @@ def configure(text, family):
     if not isinstance(json.loads(normalized), dict):
         raise ValueError('用户配置必须是 JSON 对象')
 
-    settings = {'editor.fontFamily', 'terminal.integrated.fontFamily'}
+    settings = {'terminal.integrated.fontFamily'}
     missing = settings.copy()
     edits = []
     depth = 0
