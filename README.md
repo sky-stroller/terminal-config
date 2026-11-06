@@ -1,6 +1,6 @@
 # terminal-config
 
-一套基于 Catppuccin Mocha 的终端配置，统一 Ghostty、Starship 和 Vim 的外观与光标行为。
+一套基于 Catppuccin Mocha 的终端配置，统一 Ghostty、Starship 和 Vim 的外观与光标行为，并通过 Homebrew 安装 Zsh 插件与常用命令行工具。
 
 ## 包含内容
 
@@ -145,7 +145,7 @@ curl -sS https://starship.rs/install.sh | sh
 eval "$(starship init zsh)"
 ```
 
-如果 `~/.zshrc` 已包含 `starship init zsh`，脚本会跳过自动写入，避免重复。手动安装时需要自行添加这一行。
+如果 Zsh 配置已包含手动添加的 `starship init zsh`，脚本会保留并跳过该行的自动写入，其他插件仍会正常配置。设置了 `ZDOTDIR` 时使用该目录下的 `.zshrc`。手动安装时需要自行添加这一行。
 
 重新加载 shell：
 
@@ -160,6 +160,50 @@ starship --version
 ```
 
 `install.sh` 会自动检测 Starship，缺失时优先通过 Homebrew 安装；没有 Homebrew 时回退到官方安装脚本。
+
+## Zsh 插件与命令行工具
+
+一键安装脚本会通过 Homebrew 安装以下七个包（需要提前安装 [Homebrew](https://brew.sh/)；未检测到时提示并跳过这些包的安装）：
+
+```bash
+brew install zsh-autosuggestions zsh-syntax-highlighting zsh-completions zoxide eza bat fzf
+```
+
+| 工具 | 用途与示例 |
+|------|------------|
+| `zsh-autosuggestions` | 根据历史记录显示命令建议，按右方向键接受 |
+| `zsh-syntax-highlighting` | 输入时高亮命令语法 |
+| `zsh-completions` | 为更多命令提供 Tab 补全 |
+| `zoxide` | 记录访问的目录，使用 `z 关键词` 跳转、`zi` 交互选择 |
+| `eza` | 查看目录：`eza -lah`；树形查看：`eza --tree` |
+| `bat` | 带语法高亮地查看文件：`bat ~/.zshrc` |
+| `fzf` | 模糊搜索：`Ctrl-R` 搜索历史、`Ctrl-T` 选择文件、`Alt-C` 切换目录 |
+
+脚本会在 `${ZDOTDIR:-$HOME}/.zshrc` 中写入两段 `terminal-config` 标记块：开头根据 `brew --prefix` 加入补全路径，确保早于 Oh My Zsh / `compinit`；末尾初始化补全、fzf、zoxide、自动建议和语法高亮。无框架时自动执行 `compinit`；已有插件函数时跳过对应初始化。`eza` 和 `bat` 安装后直接使用，不会自动改写 `ls`、`cat` 或 `cd` 别名。
+
+安装后执行 `exec zsh` 或新开终端。若 Oh My Zsh 提示 `insecure directories`，请检查提示中的目录权限。例如，本机 Homebrew 目录为 `/opt/homebrew/share` 且提示该目录可被组或其他用户写入时，可执行：
+
+```bash
+chmod go-w /opt/homebrew/share
+exec zsh
+```
+
+手动安装这些工具时，还需要自行配置 Zsh。补全路径应放在 Oh My Zsh / `compinit` 之前：
+
+```zsh
+fpath=("$(brew --prefix)/share/zsh-completions" $fpath)
+```
+
+其余初始化放在 `.zshrc` 末尾，语法高亮最后加载（如果已有 Oh My Zsh 或 `compinit`，省略下面的 `compinit` 两行）：
+
+```zsh
+autoload -Uz compinit
+compinit
+source <(fzf --zsh)
+eval "$(zoxide init zsh)"
+source "$(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
+source "$(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+```
 
 ## 安装
 
@@ -196,14 +240,15 @@ chmod +x install.sh
 - 检测到 macOS VS Code 时，仅设置用户配置中的 `terminal.integrated.fontFamily`，保留原有编辑器字体 `editor.fontFamily`：优先使用已安装的 `Maple Mono NF CN`，只有 NF 时使用 `Maple Mono NF`，未检测到字体文件时沿用默认的 NF CN
 - VS Code 配置写入 `~/Library/Application Support/Code/User/settings.json`，需要 Python 3；保留 JSONC 注释、格式和其他设置，配置无效时提示并跳过
 - Starship 缺失时优先通过 Homebrew 自动安装，没有 Homebrew 时使用官方安装脚本
-- 检测到 zsh 时，把 Starship 初始化写入 `~/.zshrc`（带标记块，卸载时移除）
+- 通过 Homebrew 安装三个 Zsh 插件及 zoxide、eza、bat、fzf；安装失败时提示，并只启用可用的工具
+- 检测到 zsh（或未设置 `SHELL`）时，把补全路径、Starship 和工具初始化写入 `${ZDOTDIR:-$HOME}/.zshrc`（带标记块，卸载时移除）；已有手动 Starship 初始化时保留原配置
 - 安装前把已有配置备份到 `~/.config/terminal-config/backup-<时间戳>/`
 - 把安装记录写入 `~/.config/terminal-config/state`
 - Ghostty/Starship 使用复制方式，Vim 使用标记块追加到 `~/.vimrc`
 
 > 首次从手动安装迁移时，如果 `~/.vimrc` 已包含 `t_SI` / `t_EI` / `t_SR` 但没有 `terminal-config` 标记，脚本会跳过 Vim 配置以避免重复；请先手动移除旧配置。
 
-卸载时会恢复安装前的 Ghostty/Starship 配置及 VS Code 用户配置文件（整个文件恢复为备份；若原文件不存在则删除脚本创建的文件），并从 `~/.vimrc` 和 `~/.zshrc` 移除脚本添加的标记块。
+卸载时会恢复安装前的 Ghostty/Starship 配置及 VS Code 用户配置文件（整个文件恢复为备份；若原文件不存在则删除脚本创建的文件），并从 `~/.vimrc` 和 Zsh 配置文件移除脚本添加的标记块，保留已有手动配置。Homebrew 安装的软件包不会自动卸载。已有安装记录时，需先执行 `./install.sh --uninstall` 再重新安装，以应用新增工具配置。
 
 也可以手动安装：
 

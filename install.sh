@@ -53,6 +53,7 @@ usage() {
 
 安装前会检查 Ghostty、Vim 和 macOS 上的 VS Code，只安装检测到的工具配置。
 Starship 缺失时会优先通过 Homebrew 自动安装。
+通过 Homebrew 安装 zsh-autosuggestions、zsh-syntax-highlighting、zsh-completions、zoxide、eza、bat、fzf。
 macOS 会注册 ~/Library/Fonts 中已有的 Maple Mono NF / NF CN 字体（需要 Python 3）。
 
 远程安装：
@@ -312,34 +313,85 @@ install_vscode() {
   success "VS Code 用户终端字体已设为 ${family}，请重载窗口"
 }
 
+install_shell_tools() {
+  if ! command -v brew >/dev/null 2>&1; then
+    warn "未检测到 Homebrew，跳过安装 Zsh 插件、zoxide、eza、bat 和 fzf"
+    return 0
+  fi
+
+  info "正在通过 Homebrew 安装 Zsh 插件与命令行工具..."
+  if ! brew install zsh-autosuggestions zsh-syntax-highlighting zsh-completions zoxide eza bat fzf; then
+    warn "部分工具安装失败，将仅启用可用的工具"
+  fi
+}
+
 install_zshrc() {
-  local target="$HOME/.zshrc"
+  local target="${ZDOTDIR:-$HOME}/.zshrc"
 
-  if [ "${SHELL##*/}" != "zsh" ]; then
-    warn "当前 shell 不是 zsh，跳过 ~/.zshrc 配置"
+  if [ "${SHELL:-}" != "" ] && [ "${SHELL##*/}" != "zsh" ]; then
+    warn "当前 shell 不是 zsh，跳过 $target 配置"
     return 0
   fi
 
-  if grep -q 'starship init zsh' "$target" 2>/dev/null; then
-    if grep -q '^# >>> terminal-config >>>' "$target" 2>/dev/null; then
-      success "~/.zshrc 已包含 Starship 初始化"
-    else
-      warn "~/.zshrc 已包含 starship init zsh，跳过自动写入"
-    fi
-    return 0
+  local backup brew_prefix="" has_starship=0
+  if command -v brew >/dev/null 2>&1; then
+    brew_prefix="$(brew --prefix)"
   fi
-
-  local backup
   backup="$(backup_target "$target" "zshrc")"
+  mkdir -p "$(dirname "$target")"
   touch "$target"
   remove_zsh_block "$target"
+  if grep -q 'starship init zsh' "$target"; then
+    has_starship=1
+  fi
+
+  # 补全路径必须在用户的 Oh My Zsh / compinit 初始化之前加入。
+  {
+    printf '# >>> terminal-config >>>\n'
+    printf '_terminal_config_brew_prefix=%q\n' "$brew_prefix"
+    cat <<'ZSH'
+if [[ -n $_terminal_config_brew_prefix ]]; then
+  typeset -U fpath
+  fpath=("$_terminal_config_brew_prefix/share/zsh-completions" "$_terminal_config_brew_prefix/share/zsh/site-functions" $fpath)
+fi
+# <<< terminal-config <<<
+ZSH
+    cat "$target"
+  } > "$target.tmp"
+  mv "$target.tmp" "$target"
+
   {
     printf '\n# >>> terminal-config >>>\n'
-    printf 'eval "$(starship init zsh)"\n'
-    printf '# <<< terminal-config <<<\n'
+    if [ "$has_starship" -eq 0 ]; then
+      printf 'if (( $+commands[starship] )); then eval "$(starship init zsh)"; fi\n'
+    fi
+    cat <<'ZSH'
+# 没有使用框架初始化补全时，由脚本初始化。
+if (( ! $+functions[compdef] )); then
+  autoload -Uz compinit
+  compinit
+fi
+if (( $+commands[fzf] && ! $+functions[fzf-history-widget] )); then
+  source <(fzf --zsh)
+fi
+if (( $+commands[zoxide] && ! $+functions[__zoxide_z] )); then
+  eval "$(zoxide init zsh)"
+fi
+if [[ -n $_terminal_config_brew_prefix ]]; then
+  if (( ! $+functions[_zsh_autosuggest_start] )) && [[ -r $_terminal_config_brew_prefix/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]]; then
+    source "$_terminal_config_brew_prefix/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
+  fi
+  # 语法高亮放在所有插件和快捷键初始化之后。
+  if (( ! $+functions[_zsh_highlight] )) && [[ -r $_terminal_config_brew_prefix/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then
+    source "$_terminal_config_brew_prefix/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+  fi
+fi
+unset _terminal_config_brew_prefix
+# <<< terminal-config <<<
+ZSH
   } >> "$target"
   record "zsh" "$target" "$backup"
-  success "Starship 初始化已写入 $target"
+  success "Zsh 补全、插件与工具初始化已写入 ${target}，新开终端或执行 exec zsh 生效"
 }
 
 do_install() {
@@ -370,17 +422,23 @@ do_install() {
 
   if install_starship; then
     install_copy "$ROOT_DIR/starship/starship.toml" "$CONFIG_HOME/starship.toml" "starship.toml" "Starship"
-    install_zshrc
     installed=1
   else
     warn "Starship 安装失败，跳过 starship/starship.toml"
   fi
+
+  install_shell_tools
+  install_zshrc
 
   if command -v vim >/dev/null 2>&1; then
     install_vim
     installed=1
   else
     warn "未检测到 Vim，跳过 vim/cursor.vim"
+  fi
+
+  if [ -s "$STATE_FILE" ]; then
+    installed=1
   fi
 
   if [ "$installed" -eq 0 ]; then
@@ -427,7 +485,7 @@ do_uninstall() {
         if [ -z "${backup:-}" ] && [ -f "$target" ] && ! grep -q '[^[:space:]]' "$target"; then
           rm -f "$target"
         fi
-        success "已从 $target 移除 Starship 初始化"
+        success "已从 $target 移除 Zsh 插件与工具初始化"
         ;;
       *)
         warn "未知记录类型：$mode"
